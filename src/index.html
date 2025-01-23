@@ -6,9 +6,36 @@
     <link rel="stylesheet" href="./css/index.css">
 </head>
 <body>
-   <canvas id = "canvas-second"></canvas>
-   <canvas id="canvas"></canvas>
+
+   <div class = "loading-init">
+       <div class="loading">加载中...</div>
+   </div>
+
+   <div class="container-canvas">
+       <canvas id = "canvas-second"></canvas>
+       <canvas id="canvas"></canvas>
+   </div>
+
+
    <script src="js/script.js" type="module"></script>
 
 </body>
+
+
+<style>
+    .loading {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        background-color: #f0f0f0;
+        font-size: 24px;
+        color: #555;
+    }
+</style>
+
 </html>

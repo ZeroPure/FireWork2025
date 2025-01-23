@@ -1,5 +1,13 @@
 const canvas = document.getElementById('canvas');
 const ctx = canvas.getContext('2d');
+// 图片数量
+const length = 331;
+// 图片路径
+//const imgPaths = ['../../assets/0.png','../../assets/1.png'];
+const imgPaths = Array.from({ length: length }, (_, i) => `../../assets/${i}.png`);
+// 目前迭代到的图片索引
+var currentIndex = 0;
+
 
 // 设定画布大小
 function resizeCanvas(){
@@ -41,18 +49,6 @@ const ImageCache = {
     }
 }
 
-// 图片路径
-//const imgPaths = ['../../assets/0.png','../../assets/1.png'];
-const imgPaths = Array.from({ length: 331 }, (_, i) => `../../assets/${i}.png`);
-
-
-// 图片预加载
-ImageCache.preloadImages(imgPaths,() => {
-    console.log('所有图片加载完成');
-    tick();
-});
-
-
 // 上升烟花
 const Star = {
     particles:[],
@@ -62,14 +58,28 @@ const Star = {
         const saturation = `${50 + Math.random() * 50}%`; // 随机饱和度
         const lightness = `${40 + Math.random() * 20}%`; // 随机亮度
 
+        let px = x;
         let py = y;
 
+        // 防止越界导致图片超出画布
         if(y > canvas.height - 300){
             py = canvas.height - 300;
         }
 
+        if(y < 300){
+            py = 300;
+        }
+
+        if(x > canvas.width - 300){
+            px = canvas.width - 300;
+        }
+
+        if(x < 300){
+            px = 300;
+        }
+
         this.particles.push({
-            x:x,
+            x:px,
             y:canvas.height,
             destY:py,
             speedY: 1,
@@ -187,55 +197,90 @@ const Spark = {
 // 图片爆炸
 const ImageSpark = {
     particles:[],
+    particleCache:{}, // 缓存图片粒子数据
+
+    preloadImages(callback){
+        let loaded = 0;
+
+        for(let i = 0;i < length;i++){
+            const img = ImageCache.getImage(`../../assets/${i}.png`);
+            if(!img) {
+                console.log(`粒子图片${i}加载失败`)
+                continue;
+            }
+
+            const imgSize = 180; // 图片大小
+            const center = imgSize / 2; // 图片中心
+            const density = 6; // 粒子间隔
+
+            // 绘制图片并且获得像素数据
+            ctx.drawImage(img,0,0,imgSize,imgSize);
+            const imgData = ctx.getImageData(0,0,imgSize,imgSize);
+            ctx.clearRect(0,0,imgSize,imgSize);
+
+            let pars = [];
+
+            // 图片粒子化
+            for(let h = 0;h < imgSize;h+=density){
+                for(let w = 0;w < imgSize;w+=density){
+                    const position = (imgSize * h + w) * 4;
+                    const r = imgData.data[position];
+                    const g = imgData.data[position + 1];
+                    const b = imgData.data[position + 2];
+                    const a = imgData.data[position + 3] / 255; // 转为 0-1 范围
+                    if (r + g + b === 0) continue; // 忽略全黑像素
+
+                    pars.push({
+                        offsetX: w - center, // 偏移量
+                        offsetY: h - center,
+                        r: r,
+                        g: g,
+                        b: b,
+                        a: 1,
+                    });
+                }
+            }
+            // 缓存粒子数据
+            this.particleCache[i] = pars;
+            loaded++;
+        }
+
+        if(typeof callback === 'function' && loaded === length){
+            callback();
+        }
+    },
 
     addSpark(x,y){
-        const random = Math.floor(Math.random() * 332);
+        // const random = Math.floor(Math.random() * 332);
+        const cachedParticles = this.particleCache[currentIndex];
 
-        const img = ImageCache.getImage(`../../assets/${random}.png`);
-        if(!img){
-            console.log('获取图片失败');
+        // 图片索引++
+        currentIndex++;
+        if(currentIndex >= length){
+            currentIndex = 0;
+        }
+
+        if(!cachedParticles){
+            console.log('图片粒子数据加载失败');
             return;
         }
 
-        const imgSize = 150; // 图片大小
-        const center = imgSize / 2; // 图片中心
-        const density = 6; // 粒子间隔
-
-        // 获得图片像素
-        ctx.drawImage(img,0,0,imgSize,imgSize);
-        const imgData = ctx.getImageData(0,0,imgSize,imgSize);
-        ctx.clearRect(0,0,imgSize,imgSize);
-
-        // 图片粒子化
-        for(let h = 0;h < imgSize;h+=density){
-            for(let w = 0;w < imgSize;w+=density){
-                const position = (imgSize * h + w) * 4;
-                const r = imgData.data[position];
-                const g = imgData.data[position + 1];
-                const b = imgData.data[position + 2];
-                const a = imgData.data[position + 3] / 255; // 转为 0-1 范围
-                if (r + g + b === 0) continue; // 忽略全黑像素
-
-                // 粒子位置
-                let px = x + (w - center);
-                let py = y + (h - center);
-
-                this.particles.push({
-                    x: px,
-                    y: py + 150,
-                    dy: py,
-                    r: r,
-                    g: g,
-                    b: b,
-                    a: 1,
-                    upspeed: 3, // 上升速度
-                    downspeed: Math.random() * 0.5, // 下落速度
-                    isStay: false, // 是否停留
-                    stayTime: 25,//停留时间
-                    size: 1,
-                });
-            }
-        }
+        cachedParticles.forEach(({offsetX,offsetY,r,g,b,a}) => {
+            this.particles.push({
+                x: x + offsetX,
+                y: y + offsetY + 150,
+                dy: y+ offsetY,
+                r: r,
+                g: g,
+                b: b,
+                a: a,
+                upspeed: 3, // 上升速度
+                downspeed: Math.random() * 0.5, // 下落速度
+                isStay: false, // 是否停留
+                stayTime: 25, // 停留时间
+                size: 1,
+            })
+        })
     },
 
 
@@ -283,13 +328,51 @@ const ImageSpark = {
 }
 
 
+// 图片预加载
+ImageCache.preloadImages(imgPaths,() => {
+    console.log('所有图片加载完成');
+    // 图片粒子化预加载
+    ImageSpark.preloadImages(() => {
+        console.log('所有图片粒子数据加载完成');
+        tick();
+    });
+});
+
+// 手动模式
 function clickSite(e){
     // 获取鼠标点击的坐标
     let x = e.clientX;
     let y = e.clientY;
+
     // 绘制
     Star.addStars(x,y);
 }
+
+// 自动模式
+function auto(){
+    // 随机坐标
+    const x = Math.pow(Math.random(), 2) * canvas.width;
+    const y = Math.pow(Math.random(), 2) * canvas.height;
+    Star.addStars(x,y);
+}
+
+setInterval(() => {
+    // 根据随机数决定放几个烟花
+    const random = Math.random();
+    if(random < 0.5){
+        auto();
+    }
+    else if(random < 0.75 && random >= 0.5){
+        auto();
+        auto();
+    }
+    else{
+        auto();
+        auto();
+        auto();
+    }
+
+},4000)
 
 // 渲染更新粒子信息
 function tick(){
