@@ -1,7 +1,7 @@
 const canvas = document.getElementById('canvas');
 const ctx = canvas.getContext('2d');
 // 图片数量
-const length = 331;
+const length = 330;
 // 图片路径
 //const imgPaths = ['../../assets/0.png','../../assets/1.png'];
 const imgPaths = Array.from({ length: length }, (_, i) => `../../assets/${i}.png`);
@@ -80,8 +80,8 @@ const Star = {
 
         this.particles.push({
             x:px,
-            y:canvas.height,
-            destY:py,
+            y:canvas.height, // 从底部发射
+            destY:py, // 目标高度
             speedY: 1,
             alpha: 1,
             hue: hue,
@@ -103,10 +103,15 @@ const Star = {
             star.speedY += 0.02;
             star.y -= star.speedY;
 
-            // 达到目标高度后爆炸
+            // 达到目标高度后爆炸(星花、文字、图片)
             if(star.y <= star.destY){
+
                 Spark.addSparks(star.x,star.y,star.hue,star.saturation,star.lightness);
-                ImageSpark.addSpark(star.x,star.y);
+
+                setTimeout(()=>{
+                    ImageSpark.addSpark(star.x,star.y);
+                },200)
+
                 this.particles.splice(k,1);
             }
         }
@@ -181,18 +186,16 @@ const Spark = {
             }
 
 
-            particle.alpha -= 0.0035;
+            particle.alpha -= 0.005;
             particle.time -= 1;
 
             if(particle.alpha <= 0 || particle.time <= 0){
                 this.particles.splice(k,1);
             }
         }
-
         ImageSpark.drawSpark();
     }
 }
-
 
 // 图片爆炸
 const ImageSpark = {
@@ -209,7 +212,7 @@ const ImageSpark = {
                 continue;
             }
 
-            const imgSize = 180; // 图片大小
+            const imgSize = 150; // 图片大小
             const center = imgSize / 2; // 图片中心
             const density = 6; // 粒子间隔
 
@@ -220,26 +223,56 @@ const ImageSpark = {
 
             let pars = [];
 
-            // 图片粒子化
-            for(let h = 0;h < imgSize;h+=density){
-                for(let w = 0;w < imgSize;w+=density){
-                    const position = (imgSize * h + w) * 4;
-                    const r = imgData.data[position];
-                    const g = imgData.data[position + 1];
-                    const b = imgData.data[position + 2];
-                    const a = imgData.data[position + 3] / 255; // 转为 0-1 范围
-                    if (r + g + b === 0) continue; // 忽略全黑像素
+            const random = Math.random();
 
-                    pars.push({
-                        offsetX: w - center, // 偏移量
-                        offsetY: h - center,
-                        r: r,
-                        g: g,
-                        b: b,
-                        a: 1,
-                    });
+            // 图片粒子化
+            // 两种绽放方式
+            // 向上绽放
+            if(true){
+                for(let h = 0;h < imgSize;h+=density){
+                    for(let w = 0;w < imgSize;w+=density){
+                        const position = (imgSize * h + w) * 4;
+                        const r = imgData.data[position];
+                        const g = imgData.data[position + 1];
+                        const b = imgData.data[position + 2];
+                        const a = imgData.data[position + 3] / 255; // 转为 0-1 范围
+                        if (r + g + b === 0) continue; // 忽略全黑像素
+                        pars.push({
+                            offsetX: w - center, // 偏移量
+                            offsetY: h - center,
+                            r: r,
+                            g: g,
+                            b: b,
+                            a: 1,
+                            record: 0,
+                            size:1.2, // 粒子大小
+                        });
+                    }
                 }
             }
+            // 中心绽放
+            // else{
+            //     for(let h = 0;h < imgSize;h+=density){
+            //         for(let w = 0;w < imgSize;w+=density){
+            //             const position = (imgSize * h + w) * 4;
+            //             const r = imgData.data[position];
+            //             const g = imgData.data[position + 1];
+            //             const b = imgData.data[position + 2];
+            //             const a = imgData.data[position + 3] / 255; // 转为 0-1 范围
+            //             if (r + g + b === 0) continue; // 忽略全黑像素
+            //             pars.push({
+            //                 offsetX: w - center, // 偏移量
+            //                 offsetY: h - center,
+            //                 r: r,
+            //                 g: g,
+            //                 b: b,
+            //                 a: 1,
+            //                 record: 1,
+            //                 size:1.2, // 粒子大小
+            //             });
+            //         }
+            //     }
+            // }
             // 缓存粒子数据
             this.particleCache[i] = pars;
             loaded++;
@@ -265,64 +298,141 @@ const ImageSpark = {
             return;
         }
 
-        cachedParticles.forEach(({offsetX,offsetY,r,g,b,a}) => {
-            this.particles.push({
-                x: x + offsetX,
-                y: y + offsetY + 150,
-                dy: y+ offsetY,
-                r: r,
-                g: g,
-                b: b,
-                a: a,
-                upspeed: 3, // 上升速度
-                downspeed: Math.random() * 0.5, // 下落速度
-                isStay: false, // 是否停留
-                stayTime: 25, // 停留时间
-                size: 1,
-            })
+        cachedParticles.forEach(({offsetX,offsetY,r,g,b,a,record,size}) => {
+            // 根据record来选择爆炸方式
+
+            // 冲上绽放
+            if(record === 0){
+                this.particles.push({
+                    x: x + offsetX,
+                    y: y + offsetY + 150,
+                    dy: y+ offsetY,
+                    r: r,
+                    g: g,
+                    b: b,
+                    a: a,
+                    record: record,
+                    upspeed: 3, // 上升速度
+                    downspeed: Math.random() * 0.5, // 下落速度
+                    isStay: false, // 是否停留
+                    stayTime: 30, // 停留时间
+                    size: size,
+                })
+            }
+            // 中心绽放
+            else{
+                const speed = 0.08;// 初始速度
+                let distance = Math.sqrt(offsetX * offsetX + offsetY * offsetY)
+                let speedFactor = distance * speed; // 速度因子
+                let vx = (offsetX / distance) * speedFactor;
+                let vy = (offsetY / distance) * speedFactor;
+
+                this.particles.push({
+                    x:x,
+                    y:y,
+                    fx:x + offsetX,
+                    fy:y + offsetY,
+                    vx:vx,
+                    vy:vy,
+                    r: r,
+                    g: g,
+                    b: b,
+                    a: a,
+                    record: record,
+                    downspeed: Math.random() * 0.5, // 下落速度
+                    isArrive: false, // 是否到达
+                    stayTime: 40,  // 停留时间
+                    size:size,
+                })
+            }
         })
     },
 
+    // 冲上绽放方法绘制
+    upDrawSpark(k){
+        const p = this.particles[k];
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, p.size, 0, 2 * Math.PI,false)
+        ctx.closePath();
+        ctx.fillStyle = "rgba(" + p.r + "," + p.g + "," + p.b + "," + p.a + ")";
+        ctx.fill();
+
+        // 还没到达最高点，继续向上移动
+        if(!p.isStay && p.stayTime > 0){
+            p.y -= p.upspeed;
+            p.upspeed -= 0.03;
+        }
+
+        // 如果粒子到达最高点并且还未进入停留状态
+        if(p.stayTime > 0 && !p.isStay && p.y <= p.dy){
+            p.isStay = true;
+        }
+
+        // 粒子停留状态
+        if(p.isStay){
+            p.stayTime--;
+            // 停留状态结束
+            if(p.stayTime <= 0){
+                p.isStay = false;
+            }
+        }
+
+        // 粒子下落
+        if(!p.isStay && p.stayTime <= 0){
+            p.y += p.downspeed;
+            p.a -= 0.015;
+        }
+
+        // 透明度为0时删除粒子
+        if(p.a <= 0){
+            this.particles.splice(k,1);
+        }
+    },
+
+    // 中心绽放方法绘制
+    centerDrawSpark(k) {
+        const p = this.particles[k];
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, p.size, 0, 2 * Math.PI, false)
+        ctx.closePath();
+        ctx.fillStyle = "rgba(" + p.r + "," + p.g + "," + p.b + "," + p.a + ")";
+        ctx.fill();
+
+        // 还没到达位置
+        if (p.stayTime > 0 && !p.isArrive) {
+            // 粒子移动
+            p.x += p.vx;
+            p.y += p.vy;
+
+            // 不能越界
+            if(p.x  > p.fx && p.vx > 0) p.x = p.fx;
+            if(p.y  > p.fy && p.vy > 0) p.y = p.fy;
+            if(p.x < p.fx && p.vx < 0) p.x = p.fx;
+            if(p.y < p.fy && p.vy < 0) p.y = p.fy;
+
+            // 到达位置
+            if(p.x === p.fx && p.y === p.fy) p.isArrive = true;
+
+        }
+        else if (p.stayTime > 0 && p.isArrive) {
+            p.stayTime--;
+        }
+        else if (p.stayTime <= 0) {
+            p.y += p.downspeed;
+            p.a -= 0.01;
+        }
+
+        // 透明度为0时删除粒子
+        if(p.a <= 0){
+            this.particles.splice(k,1);
+        }
+    },
 
     // 绘制图片粒子
     drawSpark(){
         for(let k = this.particles.length - 1;k >= 0 ;k--){
-            const p = this.particles[k];
-            ctx.beginPath();
-            ctx.arc(p.x, p.y, p.size, 0, 2 * Math.PI,false)
-            ctx.closePath();
-            ctx.fillStyle = "rgba(" + p.r + "," + p.g + "," + p.b + "," + p.a + ")";
-            ctx.fill();
-
-            // 还没到达最高点，继续向上移动
-            if(!p.isStay && p.stayTime > 0){
-                p.y -= p.upspeed;
-                p.upspeed -= 0.03;
-            }
-
-            // 如果粒子到达最高点并且还未进入停留状态
-            if(p.stayTime > 0 && !p.isStay && p.y <= p.dy){
-                p.isStay = true;
-            }
-
-            // 粒子停留状态
-            if(p.isStay){
-                p.stayTime--;
-                // 停留状态结束
-                if(p.stayTime <= 0){
-                    p.isStay = false;
-                }
-            }
-
-            // 粒子下落
-            if(!p.isStay && p.stayTime <= 0){
-                p.y += p.downspeed;
-                p.a -= 0.005;
-            }
-
-            if(p.a <= 0){
-                this.particles.splice(k,1);
-            }
+            if(this.particles[k].record === 0) this.upDrawSpark(k);
+            else this.centerDrawSpark(k);
         }
     }
 }
@@ -331,9 +441,17 @@ const ImageSpark = {
 // 图片预加载
 ImageCache.preloadImages(imgPaths,() => {
     console.log('所有图片加载完成');
+
     // 图片粒子化预加载
     ImageSpark.preloadImages(() => {
         console.log('所有图片粒子数据加载完成');
+        const  loadingDiv = document.querySelector('.loading-init');
+        const canvasContainer = document.querySelector('.container-canvas');
+
+        // 隐藏loading动画
+        if(loadingDiv){ loadingDiv.style.display = 'none'; }
+        if(canvasContainer){ canvasContainer.style.display = 'block'; }
+
         tick();
     });
 });
@@ -348,31 +466,74 @@ function clickSite(e){
     Star.addStars(x,y);
 }
 
+// 检查图片是否会重叠(发设多颗星星时)
+function isOverlapping(x,y){
+    const minDistance = 600; // 最小距离
+    for(const star of Star.particles){
+        const dx = star.x - x;
+        const dy = star.destY - y;
+        const distance = Math.sqrt(dx * dx + dy * dy);
+        if(distance < minDistance){
+            return true; // 重叠
+        }
+    }
+    return false; // 不重叠
+}
+
 // 自动模式
 function auto(){
     // 随机坐标
     const x = Math.pow(Math.random(), 2) * canvas.width;
     const y = Math.pow(Math.random(), 2) * canvas.height;
-    Star.addStars(x,y);
+
+    // 没发生重叠
+    if(!isOverlapping(x,y)){
+        Star.addStars(x,y);
+    } else{
+        // 发生重叠，重新放置
+        auto();
+    }
 }
 
-setInterval(() => {
+// 定时器模式
+function scheduleFireworks(){
     // 根据随机数决定放几个烟花
     const random = Math.random();
+    // 默认放一个
+    let fireworkCount = 1;
+    // 默认延时
+    let delay = 2000;
+
+    // if(random < 0.5){
+    //     fireworkCount = 1;
+    // }
+    // else if(random < 0.75){
+    //     fireworkCount = 2;
+    // }
+    // else{
+    //     fireworkCount = 3;
+    //     delay = 8000;// 延时加长,因为会卡
+    // }
+
+
     if(random < 0.5){
-        auto();
-    }
-    else if(random < 0.75 && random >= 0.5){
-        auto();
-        auto();
+        fireworkCount = 1;
     }
     else{
-        auto();
-        auto();
+        fireworkCount = 2;
+    }
+
+
+    // 放烟花
+    for(let i = 0;i < fireworkCount;i++){
         auto();
     }
 
-},4000)
+    // 根据delay重新调度
+    setTimeout(scheduleFireworks,delay)
+}
+
+scheduleFireworks();
 
 // 渲染更新粒子信息
 function tick(){
@@ -381,6 +542,7 @@ function tick(){
     Star.drawStars();
     Spark.drawFire();
     requestAnimationFrame(tick);
+
 }
 
 window.addEventListener('resize', resizeCanvas);

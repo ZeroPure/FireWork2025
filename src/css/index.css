@@ -4,10 +4,12 @@
 }
 
 body{
-    background-color: #000000;
+    background-color: #ffffff;
 }
 
 canvas{
     position: absolute;
+    color: #ffffff;
+    background-color: #ffffff;
     z-index: 0;
 }
